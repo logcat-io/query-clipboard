@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(docker compose:*)",
+      "Bash(open -a Docker)",
+      "Bash(sudo lsof:*)",
+      "Bash(brew services:*)",
+      "Bash(pg_isready)",
+      "Bash(pip install:*)",
+      "Bash(python:*)",
+      "Bash(pip show:*)",
+      "Bash(uv --version)",
+      "Bash(uv init:*)",
+      "Bash(uv sync:*)",
+      "Bash(uv run:*)",
+      "Bash(ls -la /Users/devfrog/Documents/github/project/query-repository/*.*)",
+      "Bash(grep -E \"\\\\.\\(env|conf|cfg|ini|json\\)$\")",
+      "Bash(docker build:*)",
+      "Bash(curl -s -o /dev/null -w \"Status: %{http_code}\\\\n\" http://localhost:80)",
+      "Bash(curl -s http://localhost:80)",
+      "Bash(docker image:*)"
+    ]
+  }
+}
