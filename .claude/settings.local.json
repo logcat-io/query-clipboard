@@ -18,7 +18,10 @@
       "Bash(docker build:*)",
       "Bash(curl -s -o /dev/null -w \"Status: %{http_code}\\\\n\" http://localhost:80)",
       "Bash(curl -s http://localhost:80)",
-      "Bash(docker image:*)"
+      "Bash(docker image:*)",
+      "Bash(docker exec:*)",
+      "Bash(uv lock:*)",
+      "Bash(mysql:*)"
     ]
   }
 }

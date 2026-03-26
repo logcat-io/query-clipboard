@@ -1,37 +1,38 @@
-from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import AwareDatetime
+from sqlmodel import SQLModel
 
 
-class CreateQueryCommand(BaseModel):
+class CreateQueryCommand(SQLModel):
     title: str
     description: Optional[str] = None
-    purpose: str
+    purpose_id: int
     tags: str = ""
     sql_text: str
 
 
-class UpdateQueryCommand(BaseModel):
+class UpdateQueryCommand(SQLModel):
     title: str
     description: Optional[str] = None
-    purpose: str
+    purpose_id: int
     tags: str = ""
     sql_text: str
 
 
-class QueryResult(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
+class QueryResult(SQLModel):
     id: int
     title: str
     description: Optional[str] = None
-    purpose: str
+    purpose_id: int
+    purpose_name: str = ""
     tags: str = ""
     sql_text: str
-    created_at: datetime
+    version: int = 1
+    created_at: AwareDatetime
+    updated_at: Optional[AwareDatetime] = None
 
 
-class QuerySearchCriteria(BaseModel):
-    purpose: Optional[str] = None
+class QuerySearchCriteria(SQLModel):
+    purpose_id: Optional[int] = None
     search: Optional[str] = None

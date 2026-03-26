@@ -15,7 +15,7 @@ class QueryRepository(ABC):
 
     @abstractmethod
     async def find_by_criteria(
-        self, purpose: Optional[str] = None, search: Optional[str] = None
+        self, purpose_id: Optional[int] = None, search: Optional[str] = None
     ) -> List[Query]:
         pass
 

@@ -17,3 +17,8 @@ class QueryNotFoundException(DomainException):
 class InvalidQueryException(DomainException):
     """Raised when a query fails validation."""
     pass
+
+
+class InvalidPurposeException(DomainException):
+    """Raised when a purpose fails validation."""
+    pass

@@ -10,47 +10,65 @@ from server.core.application.dto.query_dto import (
     UpdateQueryCommand,
     QuerySearchCriteria,
 )
+from server.core.application.dto.purpose_dto import CreatePurposeCommand
 from server.core.application.usecase.query_usecase import QueryUseCase
+from server.core.application.usecase.purpose_usecase import PurposeUseCase
 from server.core.domain.exception.domain_exception import (
     QueryNotFoundException,
     InvalidQueryException,
+    InvalidPurposeException,
 )
-
-PURPOSES = ["조회", "수정", "삭제", "집계", "기타"]
 
 templates_dir = os.path.join(os.path.dirname(__file__), "..", "..", "..", "templates")
 templates = Jinja2Templates(directory=os.path.abspath(templates_dir))
 
 
-def create_query_router(use_case: QueryUseCase) -> APIRouter:
+def create_query_router(use_case: QueryUseCase, purpose_use_case: PurposeUseCase) -> APIRouter:
     router = APIRouter()
+
+    async def _render_context(
+        request: Request,
+        queries,
+        current_purpose_id: Optional[int] = None,
+        search_query: str = "",
+        edit_query=None,
+        error: str = None,
+        status_code: int = 200,
+    ):
+        purposes = await purpose_use_case.get_all_purposes()
+
+        ctx = {
+            "request": request,
+            "queries": queries,
+            "purposes": purposes,
+            "current_purpose_id": current_purpose_id,
+            "search_query": search_query,
+            "edit_query": edit_query,
+        }
+        if error:
+            ctx["error"] = error
+        return templates.TemplateResponse("index.html", ctx, status_code=status_code)
 
     @router.get("/")
     async def index(
         request: Request,
-        purpose: Optional[str] = None,
+        purpose_id: Optional[int] = None,
         q: Optional[str] = None,
     ):
         criteria = QuerySearchCriteria(
-            purpose=purpose if purpose else None,
+            purpose_id=purpose_id,
             search=q if q else None,
         )
 
-        if criteria.purpose or criteria.search:
+        if criteria.purpose_id or criteria.search:
             queries = await use_case.search_queries(criteria)
         else:
             queries = await use_case.get_all_queries()
 
-        return templates.TemplateResponse(
-            "index.html",
-            {
-                "request": request,
-                "queries": queries,
-                "purposes": PURPOSES,
-                "current_purpose": purpose or "",
-                "search_query": q or "",
-                "edit_query": None,
-            },
+        return await _render_context(
+            request, queries,
+            current_purpose_id=purpose_id,
+            search_query=q or "",
         )
 
     @router.post("/add")
@@ -58,7 +76,7 @@ def create_query_router(use_case: QueryUseCase) -> APIRouter:
         request: Request,
         title: str = Form(...),
         description: Optional[str] = Form(None),
-        purpose: str = Form(...),
+        purpose_id: int = Form(...),
         tags: str = Form(""),
         sql_text: str = Form(...),
     ):
@@ -66,7 +84,7 @@ def create_query_router(use_case: QueryUseCase) -> APIRouter:
             command = CreateQueryCommand(
                 title=title,
                 description=description if description else None,
-                purpose=purpose,
+                purpose_id=purpose_id,
                 tags=tags,
                 sql_text=sql_text,
             )
@@ -74,49 +92,34 @@ def create_query_router(use_case: QueryUseCase) -> APIRouter:
             return RedirectResponse(url="/", status_code=303)
         except InvalidQueryException as e:
             queries = await use_case.get_all_queries()
-            return templates.TemplateResponse(
-                "index.html",
-                {
-                    "request": request,
-                    "queries": queries,
-                    "purposes": PURPOSES,
-                    "current_purpose": "",
-                    "search_query": "",
-                    "edit_query": None,
-                    "error": e.message,
-                },
-                status_code=400,
+            return await _render_context(
+                request, queries, error=e.message, status_code=400,
             )
 
     @router.get("/edit/{query_id}")
     async def edit_query_form(
         request: Request,
         query_id: int,
-        purpose: Optional[str] = None,
+        purpose_id: Optional[int] = None,
         q: Optional[str] = None,
     ):
         try:
             edit_query = await use_case.get_query_by_id(query_id)
 
             criteria = QuerySearchCriteria(
-                purpose=purpose if purpose else None,
+                purpose_id=purpose_id,
                 search=q if q else None,
             )
-            if criteria.purpose or criteria.search:
+            if criteria.purpose_id or criteria.search:
                 queries = await use_case.search_queries(criteria)
             else:
                 queries = await use_case.get_all_queries()
 
-            return templates.TemplateResponse(
-                "index.html",
-                {
-                    "request": request,
-                    "queries": queries,
-                    "purposes": PURPOSES,
-                    "current_purpose": purpose or "",
-                    "search_query": q or "",
-                    "edit_query": edit_query,
-                },
+            return await _render_context(
+                request, queries,
+                current_purpose_id=purpose_id,
+                search_query=q or "",
+                edit_query=edit_query,
             )
         except QueryNotFoundException:
             return RedirectResponse(url="/", status_code=303)
@@ -127,7 +130,7 @@ def create_query_router(use_case: QueryUseCase) -> APIRouter:
         query_id: int,
         title: str = Form(...),
         description: Optional[str] = Form(None),
-        purpose: str = Form(...),
+        purpose_id: int = Form(...),
         tags: str = Form(""),
         sql_text: str = Form(...),
     ):
@@ -135,7 +138,7 @@ def create_query_router(use_case: QueryUseCase) -> APIRouter:
             command = UpdateQueryCommand(
                 title=title,
                 description=description if description else None,
-                purpose=purpose,
+                purpose_id=purpose_id,
                 tags=tags,
                 sql_text=sql_text,
             )
@@ -150,17 +153,10 @@ def create_query_router(use_case: QueryUseCase) -> APIRouter:
                 edit_query = await use_case.get_query_by_id(query_id)
             except QueryNotFoundException:
                 pass
-            return templates.TemplateResponse(
-                "index.html",
-                {
-                    "request": request,
-                    "queries": queries,
-                    "purposes": PURPOSES,
-                    "current_purpose": "",
-                    "search_query": "",
-                    "edit_query": edit_query,
-                    "error": e.message,
-                },
+            return await _render_context(
+                request, queries,
+                edit_query=edit_query,
+                error=e.message,
                 status_code=400,
             )
 
@@ -169,6 +165,23 @@ def create_query_router(use_case: QueryUseCase) -> APIRouter:
         try:
             await use_case.delete_query(query_id)
         except QueryNotFoundException:
+            pass
+        return RedirectResponse(url="/", status_code=303)
+
+    @router.post("/purposes/add")
+    async def add_purpose(name: str = Form(...), sort_order: int = Form(0)):
+        try:
+            command = CreatePurposeCommand(name=name, sort_order=sort_order)
+            await purpose_use_case.create_purpose(command)
+        except InvalidPurposeException:
+            pass
+        return RedirectResponse(url="/", status_code=303)
+
+    @router.post("/purposes/delete/{purpose_id}")
+    async def delete_purpose(purpose_id: int):
+        try:
+            await purpose_use_case.delete_purpose(purpose_id)
+        except InvalidPurposeException:
             pass
         return RedirectResponse(url="/", status_code=303)
 
